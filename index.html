@@ -68,89 +68,138 @@
         { name: "붉은귀거북", type: "invasive", info: "눈 옆에 빨간 줄무늬가 있음. 생존력이 강해 토종 거북을 밀어냄.", img: "https://url.kr/vvhkp1" },
     ];
 
-    let hp = 100;
-    let currentIdx = 0;
-    let score = 0;
-
-    // 학습 화면 로드
-   // 학습 화면 로드 및 사진 표시 부분
-const studyContent = document.getElementById('study-content');
-studyContent.innerHTML = ""; // 초기화
-
-data.forEach(item => {
-    // 타입에 따른 라벨 색상 설정 (토종: 검정, 외래종: 검정)
-    const typeLabel = item.type === 'native' ? 
-        '<span style="color: black;">[토종]</span>' : 
-        '<span style="color: black;">[외래종]</span>';
-
-    studyContent.innerHTML += `
-        <div class="info-card" style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
-            <img src="${item.img}" alt="${item.name}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 15px;">
-            <div style="text-align: left;">
-                <div style="font-weight: bold; font-size: 1.1em;">${typeLabel} ${item.name}</div>
-                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">${item.info}</div>
-            </div>
-        </div>
-    `;
-});
+    
+    let gameList = []; // 실제 게임에 사용할 섞인 리스트
 
     function startGame() {
-        document.getElementById('study-phase').classList.add('hidden');
+        gameList = [...data];
+        for (let i = gameList.length - 1; i > 0; i--) {const j = Math.floor(Math.random() * (i + 1)); [gameList[i], gameList[j]] = [gameList[j], gameList[i]];}
+    
+        hp = 100;
+        currentIdx = 0;
+        score = 0;
+    
+
+        document.getElementById('hp-fill').style.width = "100%";
+        document.getElementById('hp-text').innerText = "토종 생물의 HP: 100";
+        document.getElementById('study-phase-container').classList.add('hidden');
         document.getElementById('game-phase').classList.remove('hidden');
-        showNextQuestion();
+    
+        showQuestion();
     }
 
-    function showNextQuestion() {
-        if (currentIdx >= data.length || hp <= 0) {
+    function showQuestion() {
+        if (currentIdx >= gameList.length || hp <= 0) {
             endGame();
             return;
         }
-        const currentItem = data[currentIdx];
-        document.getElementById('target-img').src = currentItem.img;
-        document.getElementById('target-name').innerText = "이 생물은?";
+    
+    
+        const item = gameList[currentIdx];
+        document.getElementById('target-img').src = item.img;
+        document.getElementById('target-name').innerText = "이 생물의 정체는?";
         document.getElementById('feedback').innerText = "";
     }
 
-    function checkAnswer(isNativeClicked) {
-        const currentItem = data[currentIdx];
-        const isCorrect = (currentItem.type === 'native' && isNativeClicked) || 
-                          (currentItem.type === 'invasive' && !isNativeClicked);
 
-        if (isCorrect) {
+    function checkAnswer(isNative) {
+        const item = gameList[currentIdx]; // data가 아닌 gameList를 참조해야 합니다.
+        const correct = (item.type === 'native') === isNative;
+
+        if (correct) {
             score++;
             document.getElementById('feedback').innerText = "✅ 정답입니다!";
             document.getElementById('feedback').style.color = "green";
         } else {
-            hp -= 10;
-            updateHP();
-            document.getElementById('feedback').innerText = "❌ 틀렸습니다.. 외래종의 공격으로 토종 생물이 다쳤습니다.";
+            hp -= 25;
+            document.getElementById('hp-fill').style.width = hp + "%";
+            document.getElementById('hp-text').innerText = "토종 생물의 HP: " + hp;
+            document.getElementById('feedback').innerText = "❌ 틀렸습니다! 공격받았습니다.";
             document.getElementById('feedback').style.color = "red";
         }
 
         currentIdx++;
-        setTimeout(showNextQuestion, 1500);
+        setTimeout(showQuestion, 1000);
     }
 
-    function updateHP() {
-        const hpFill = document.getElementById('hp-fill');
-        hpFill.style.width = hp + "%";
-        if (hp <= 0) endGame();
-    }
 
-    function endGame() {
-        document.getElementById('game-phase').classList.add('hidden');
-        document.getElementById('result-phase').classList.remove('hidden');
-        
-        const title = document.getElementById('result-title');
-        if (hp > 30) {
-            title.innerText = "🎉 생태계 수호 성공!";
-            title.style.color = "#4caf50";
-        } else {
-            title.innerText = "💀 생태계 파괴됨...";
-            title.style.color = "#f44336";
+    const studyContent = document.getElementById('study-content');
+    studyContent.innerHTML = ""; // 초기화
+    
+    data.forEach(item => {
+        // 타입에 따른 라벨 색상 설정 (토종: 검정, 외래종: 검정)
+        const typeLabel = item.type === 'native' ? 
+            '<span style="color: black;">[토종]</span>' : 
+            '<span style="color: black;">[외래종]</span>';
+
+        studyContent.innerHTML += `
+            <div class="info-card" style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <img src="${item.img}" alt="${item.name}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 15px;">
+                <div style="text-align: left;">
+                    <div style="font-weight: bold; font-size: 1.1em;">${typeLabel} ${item.name}</div>
+                    <div style="font-size: 0.9em; color: #666; margin-top: 5px;">${item.info}</div>
+                </div>
+            </div>
+        `;
+    });
+
+        function startGame() {
+            document.getElementById('study-phase').classList.add('hidden');
+            document.getElementById('game-phase').classList.remove('hidden');
+            showNextQuestion();
         }
-        document.getElementById('result-score').innerText = `최종 점수: ${score} / ${data.length}`;
-    }
+
+        function showNextQuestion() {
+            if (currentIdx >= data.length || hp <= 0) {
+                endGame();
+                return;
+            }
+            const currentItem = data[currentIdx];
+            document.getElementById('target-img').src = currentItem.img;
+            document.getElementById('target-name').innerText = "이 생물은?";
+            document.getElementById('feedback').innerText = "";
+        }
+
+        function checkAnswer(isNativeClicked) {
+            const currentItem = data[currentIdx];
+            const isCorrect = (currentItem.type === 'native' && isNativeClicked) || 
+                            (currentItem.type === 'invasive' && !isNativeClicked);
+
+            if (isCorrect) {
+                score++;
+                document.getElementById('feedback').innerText = "✅ 정답입니다!";
+                document.getElementById('feedback').style.color = "green";
+            } else {
+                hp -= 10;
+                updateHP();
+                document.getElementById('feedback').innerText = "❌ 틀렸습니다.. 외래종의 공격으로 토종 생물이 다쳤습니다.";
+                document.getElementById('feedback').style.color = "red";
+            }
+
+            currentIdx++;
+            setTimeout(showNextQuestion, 1500);
+        }
+
+        function updateHP() {
+            const hpFill = document.getElementById('hp-fill');
+            hpFill.style.width = hp + "%";
+            if (hp <= 0) endGame();
+        }
+
+        function endGame() {
+            document.getElementById('game-phase').classList.add('hidden');
+            document.getElementById('result-phase').classList.remove('hidden');
+        
+            const title = document.getElementById('result-title');
+            if (hp > 30) {
+                title.innerText = "🎉 생태계 수호 성공!";
+                title.style.color = "#4caf50";
+            } else {
+                title.innerText = "💀 생태계 파괴됨...";
+                title.style.color = "#f44336";
+            }
+            document.getElementById('result-score').innerText = `최종 점수: ${score} / ${data.length}`;
+        }
 </script>
 
 </body>
