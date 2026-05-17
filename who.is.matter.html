@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>생태계 수호자: 누가 가해자게?</title>
+    <style>
+        body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; background-color: #cee7ff; text-align: center; margin: 0; padding: 20px; }
+        #game-container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .hidden { display: none; }
+       
+        /* 이미지 영역 */
+        .img-wrapper { width: 100%; height: 280px; overflow: hidden; border-radius: 15px; margin: 20px 0; border: 5px solid #f0f0f0; background: #eee; }
+        .organism-img { width: 100%; height: 100%; object-fit: cover; }
+       
+        /* HP 바 */
+        .hp-bar-bg { width: 100%; height: 25px; background: #eee; border-radius: 15px; margin: 15px 0; overflow: hidden; position: relative; }
+        #hp-fill { width: 100%; height: 100%; background: linear-gradient(to right, #ff7675, #d63031); transition: width 0.4s ease-in-out; }
+        #hp-text { position: absolute; width: 100%; top: 0; left: 0; line-height: 25px; font-size: 14px; font-weight: bold; color: #333; }
+
+        /* 버튼 스타일 */
+        .btn { padding: 15px 30px; font-size: 18px; font-weight: bold; cursor: pointer; border: none; border-radius: 10px; margin: 10px 5px; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        .btn-native { background: #5eca8b; color: white; width: 45%; }
+        .btn-invasive { background: #fc8e82; color: white; width: 45%; }
+        .btn-start { background: #3498db; color: white; width: 100%; margin-top: 20px; }
+       
+        /* 학습 카드 */
+        #study-phase-list { max-height: 400px; overflow-y: auto; padding-right: 10px; border: 1px inset #eee; border-radius: 10px; padding: 10px; }
+        .info-card { display: flex; align-items: center; background: #fdfdfd; padding: 12px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #eee; }
+        .info-card img { width: 70px; height: 70px; object-fit: cover; border-radius: 10px; margin-right: 15px; background: #ddd; }
+        .info-card div { text-align: left; }
+       
+        #feedback { font-size: 1.3em; font-weight: bold; margin-top: 15px; min-height: 1.5em; }
+
+        /* 토종일 때 적용할 색상 (초록) */
+        .text-native {
+            color: #5eca8b;
+            font-weight: bold;
+        }
+
+        /* 외래종일 때 적용할 색상 (빨강) */
+        .text-invasive {
+            color: #fc8e82;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>누가 가해자게? 🌿</h1>
+   
+    <div id="screen-study">
+        <p style="font-size: 1.1em; color: #444; line-height: 1.6;">
+            당신은 한국의 <span style="color:#5eca8b">토종</span> 생물입니다.<br>
+            평화를 위협하는 <span style="color:#fc8e82">외래종</span>을 구별해내세요!
+        </p>
+        <div id="study-phase-list">
+            </div>
+        <button class="btn btn-start" onclick="startGame()">준비됐습니다! 게임 시작</button>
+        <p style="font-size: 0.8em; color: #999; margin-top: 15px;">사진 출처: 나무위키(큰입배스는 구글 이미지 검색함)</p>
+    </div>
+
+    <div id="screen-game" class="hidden">
+        <div class="hp-bar-bg">
+            <div id="hp-fill"></div>
+            <div id="hp-text">토종 생물 HP: 100</div>
+        </div>
+       
+        <div class="img-wrapper">
+            <img id="target-img" class="organism-img" src="" alt="생물 사진">
+        </div>
+       
+        <h2 id="target-title">이 생물은 누구일까요?</h2>
+        <div>
+            <button class="btn btn-native" onclick="checkAnswer(true)">토종</button>
+            <button class="btn btn-invasive" onclick="checkAnswer(false)">외래종</button>
+        </div>
+        <p id="feedback"></p>
+    </div>
+
+    <div id="screen-result" class="hidden">
+        <h2 id="result-title" style="font-size: 2em;"></h2>
+        <p id="result-score" style="font-size: 1.4em; color: #555;"></p>
+        <button class="btn btn-start" onclick="location.reload()">다시 공부하고 시작하기</button>
+    </div>
+</div>
+
+<script>
+    const data = [
+        { name: "각시붕어", type: "native", info: "<strong>무지개 빛</strong>이 나서 <em><strong>'물속의 보석'</strong></em>으로도 불림.<br><em>4~5cm</em> 크기의 아주 작은 물고기.", img: "https://url.kr/hk31th" },
+        { name: "큰입배스", type: "invasive", info: "아래턱이 위턱보다 길게 튀어나와 있음.<br><em>최대 60cm</em>까지 자라는 대형 어류.<br>몸 옆면에 <strong>검은색 수평 줄무늬</strong>가 있음.<br>입이 몸에 비해 거대하여 토종 물고기를 싹쓸이함.", img: "https://buly.kr/1GLhPUL" },
+
+        { name: "참가재", type: "native", info: "몸빚이 <span style='color:brown'>은은한 갈색</span>이나 <span style='color:brown'>회갈색</span>을 띔.<br>집게발이 둥글고 매끄러운 편.", img: "https://buly.kr/8TsldS8" },
+        { name: "미국가재", type: "invasive", info: "몸 전체가 삶은 것 같은 <span style='color:red'>강렬한 붉은색</span>.<br>온몸과 집게발에 <strong>가시 같은 돌기</strong>가 있음.", img: "https://url.kr/6utgom" },
+
+        { name: "참개구리", type: "native", info: "논에서 흔히 보이는 우리 개구리.<br>몸 길이가 <em>보통 6~9cm</em>로 작음.<br><strong>중앙</strong>에 <span style='color:green'>연한 초록색</span>이나 <span style='color:#ecd500;'>노란색 선</span>이 뚜렷하게 나 있음.", img: "https://url.kr/toqvwd" },
+        { name: "황소개구리", type: "invasive", info: "번식력이 강하고 뱀까지 잡아먹음.<br>몸 길이가 <em>최대 20cm</em>가 넘을 정도로 토종 개구리보다 압도적으로 큼.<br>울음소리가 황소처럼 굵고 낮다.", img: "https://url.kr/dqibtu" },
+
+        { name: "수달", type: "native", info: "맑은 물에 사는 귀여운 천연기념물.", img: "https://url.kr/mr5lmf" },
+        { name: "뉴트리아", type: "invasive", info: "거대한 <strong>쥐</strong>처럼 생겼고 습지를 파괴함.", img: "https://url.kr/7cj8ah" },
+
+        { name: "남생이", type: "native", info: "등갑이 <strong><em>천연 기념물</em></strong>이자 <strong><em>멸종위기종</em></strong>.<br>전체적으로 <span style='color:brown'>어두운 갈색</strong>을 띄며 <span>얼굴 옆면에 <span style='color:#ecd500;'>노란색 줄무늬</span> 있음.", img: "https://buly.kr/C0BvFCt"},
+        { name: "붉은귀거북", type: "invasive", info: "눈 옆의 <span style='color:red'>빨간 줄무늬</span>가 특징.<br>하지만 <strong>물속에 있으면 헷갈리기 쉬움</strong>.", img: "https://url.kr/vvhkp1" },
+
+        { name: "쑥", type: "native", info: "<span style='color:gray'>잎 뒷면이 하얀 솜털</span>로 덮여있어 <span style='color:gray'>하얗게 보임</span>.<br>특유의 <span style='color:green'>향긋한 쑥향</span>이 남.", img: "https://buly.kr/31VHE0h"},
+        { name: "돼지풀", type: "invasive", info: "<span style='color:green'>잎 뒷면이 녹색</span>.<br>쑥향X.<br><strong>알레르기 유발하는 꽃가루</strong>를 날리는 <strong>교란 식물</strong>", img: "https://buly.kr/3jAJ9Ik"}
+    ];
+
+    let gameList = [];
+    let hp = 100;
+    let currentIdx = 0;
+    let score = 0;
+
+    // 초기 학습 리스트 렌더링
+    function initStudyPage() {
+        const listContainer = document.getElementById('study-phase-list');
+        listContainer.innerHTML = ""; // 기존 내용 초기화
+
+        data.forEach(item => {
+            // 1. 타입에 따라 클래스와 텍스트 결정
+            const isNative = item.type === 'native';
+            const typeClass = isNative ? 'text-native' : 'text-invasive';
+            const typeName = isNative ? '토종' : '외래종';
+
+            const card = document.createElement('div');
+            card.className = 'info-card';
+            card.innerHTML = `
+                <img src="${item.img}" onerror="this.src='https://via.placeholder.com/70?text=No+Img'">
+                <div>
+                    <strong class="${typeClass}">[${typeName}] ${item.name}</strong><br>
+                    <small>${item.info}</small>
+                </div>
+            `;
+            listContainer.appendChild(card);
+        });
+    }
+
+    // 게임 시작
+    function startGame() {
+        // 셔플 알고리즘
+        gameList = [...data].sort(() => Math.random() - 0.5);
+       
+        hp = 100;
+        currentIdx = 0;
+        score = 0;
+
+        document.getElementById('screen-study').classList.add('hidden');
+        document.getElementById('screen-game').classList.remove('hidden');
+       
+        updateUI();
+        showQuestion();
+    }
+
+    // 문제 표시
+    function showQuestion() {
+        if (currentIdx >= gameList.length || hp <= 0) {
+            endGame();
+            return;
+        }
+        const item = gameList[currentIdx];
+        document.getElementById('target-img').src = item.img;
+        document.getElementById('feedback').innerText = "";
+    }
+
+    // 정답 체크
+    function checkAnswer(isNative) {
+        const item = gameList[currentIdx];
+        const isCorrect = (item.type === 'native') === isNative;
+
+        const feedbackEl = document.getElementById('feedback');
+        if (isCorrect) {
+            score++;
+            feedbackEl.innerText = "✅ 정답입니다!";
+            feedbackEl.style.color = "#2ecc71";
+        } else {
+            hp -= 10;
+            if(hp < 0) hp = 0;
+            feedbackEl.innerText = "❌ 틀렸습니다! 외래종으로 부터 공격받았습니다.";
+            feedbackEl.style.color = "#e74c3c";
+            updateUI();
+        }
+
+        currentIdx++;
+        setTimeout(showQuestion, 1200);
+    }
+
+    // UI(HP 등) 업데이트
+    function updateUI() {
+        document.getElementById('hp-fill').style.width = hp + "%";
+        document.getElementById('hp-text').innerText = `토종 생물 HP: ${hp}`;
+    }
+
+    // 게임 종료
+    function endGame() {
+        document.getElementById('screen-game').classList.add('hidden');
+        document.getElementById('screen-result').classList.remove('hidden');
+       
+        const titleEl = document.getElementById('result-title');
+        if (hp > 0) {
+            titleEl.innerText = "🏆 수호 성공!";
+            titleEl.style.color = "#2ecc71";
+        } else {
+            titleEl.innerText = "💀 수호 실패...";
+            titleEl.style.color = "#e74c3c";
+        }
+        document.getElementById('result-score').innerText = `성적: ${data.length}마리 중 ${score}마리 구출`;
+    }
+
+    // 페이지 로드 시 실행
+    window.onload = initStudyPage;
+</script>
+
+</body>
+</html>
