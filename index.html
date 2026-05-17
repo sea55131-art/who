@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>생태계 수호자: 우리 친구를 지켜라!</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; background-color: #cee7ff; text-align: center; margin: 0; padding: 20px; }
+        #game-container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .hidden { display: none; }
+        .organism-img { width: 100%;  height: 100%;  object-fit: cover; object-position: center; }
+        .hp-bar-bg { width: 100%; height: 20px; background: #eee; border-radius: 10px; margin: 15px 0; overflow: hidden; }
+        .img-wrapper { width: 100%;  height: 250px;  overflow: hidden;  border-radius: 12px;  margin: 20px 0; border: 4px solid #eee;}
+        #hp-fill { width: 100%; height: 100%; background: #ff5252; transition: width 0.3s; }
+        .btn { padding: 12px 25px; font-size: 18px; cursor: pointer; border: none; border-radius: 8px; margin: 5px; transition: 0.2s; }
+        .btn-native { background: #4caf50; color: white; }
+        .btn-invasive { background: #f44336; color: white; }
+        .btn-start { background: #2196f3; color: white; }
+        .info-card { text-align: left; background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+        #study-phase {max-height: 500px; overflow-y: auto; padding-right: 10px; margin-bottom: 20px;}
+        #study-phase::-webkit-scrollbar {width: 6px;}
+        #study-phase::-webkit-scrollbar-thumb {background-color: #ccc; border-radius: 10px;}
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <h1>누가 가해자게?</h1>
+    
+    <div id="study-phase">
+        <h3>당신은 지금부터 한국 토종 생물중 하나 입니다.</h3>
+        <h3>당신을 위협하는 외래종을 찾아내 물리칩시다!</h3>
+        <h3>먼저 외래종의 특징을 알아봅시다!</h3>
+        <div id="study-content"></div>
+        <button class="btn btn-start" onclick="startGame()">게임 시작하기!</button>
+        <h6>모든 사진 자료들의 출처 : 나무위키</h6>
+    </div>
+
+    <div id="game-phase" class="hidden">
+        <div class="hp-bar-bg"><div id="hp-fill"></div></div>
+        <p>토종 생물의 남은 체력(HP)</p>
+        <img id="target-img" class="organism-img" src="" alt="생물">
+        <h2 id="target-name">???</h2>
+        <p>이 생물은 <b>토종</b>일까요, <b>외래종</b>일까요?</p>
+        <button class="btn btn-native" onclick="checkAnswer(true)">토종</button>
+        <button class="btn btn-invasive" onclick="checkAnswer(false)">외래종</button>
+        <p id="feedback"></p>
+    </div>
+
+    <div id="result-phase" class="hidden">
+        <h2 id="result-title"></h2>
+        <p id="result-score"></p>
+        <button class="btn btn-start" onclick="location.reload()">다시 하기</button>
+    </div>
+</div>
+
+<script>
+    // 생물 데이터 (실제 이미지 URL로 대체 가능)
+    const data = [
+        { name: "각시붕어", type: "native", info: "몸에 아름다운 무지개 빛이 나며 조개 속에 알을 낳음.", img: "https://url.kr/hk31th" },
+        { name: "참게", type: "native", info: "가을이 제철인 우리나라 고유 게.", img: "https://url.kr/idwxem" },
+        { name: "참개구리", type: "native", info: "우리 논에서 흔히 볼 수 있는 친구.", img: "https://url.kr/toqvwd" },
+        { name: "수달", type: "native", info: "동글동글한 얼굴. 맑은 물에 살며 천연기념물로 보호받음.", img: "https://url.kr/mr5lmf" },
+
+        { name: "큰입배스", type: "invasive", info: "등지느러미가 날카롭고 입이 매우 큼. 토종 물고기를 싹쓸이함.", img: "https://url.kr/psu88u" },
+        { name: "미국가재", type: "invasive", info: "집게가 크고 토종 생태계를 교란함.", img: "https://url.kr/6utgom" },
+        { name: "황소개구리", type: "invasive", info: "번식력이 강하고 뱀까지 잡아먹음.", img: "https://url.kr/dqibtu" },
+        { name: "뉴트리아", type: "invasive", info: "커다란 쥐처럼 생겼으며 주황색 앞니가 특징. 습지 식물을 파괴함.", img: "https://url.kr/7cj8ah" },
+        { name: "붉은귀거북", type: "invasive", info: "눈 옆에 빨간 줄무늬가 있음. 생존력이 강해 토종 거북을 밀어냄.", img: "https://url.kr/vvhkp1" },
+    ];
+
+    let hp = 100;
+    let currentIdx = 0;
+    let score = 0;
+
+    // 학습 화면 로드
+   // 학습 화면 로드 및 사진 표시 부분
+const studyContent = document.getElementById('study-content');
+studyContent.innerHTML = ""; // 초기화
+
+data.forEach(item => {
+    // 타입에 따른 라벨 색상 설정 (토종: 검정, 외래종: 검정)
+    const typeLabel = item.type === 'native' ? 
+        '<span style="color: black;">[토종]</span>' : 
+        '<span style="color: black;">[외래종]</span>';
+
+    studyContent.innerHTML += `
+        <div class="info-card" style="display: flex; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+            <img src="${item.img}" alt="${item.name}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-right: 15px;">
+            <div style="text-align: left;">
+                <div style="font-weight: bold; font-size: 1.1em;">${typeLabel} ${item.name}</div>
+                <div style="font-size: 0.9em; color: #666; margin-top: 5px;">${item.info}</div>
+            </div>
+        </div>
+    `;
+});
+
+    function startGame() {
+        document.getElementById('study-phase').classList.add('hidden');
+        document.getElementById('game-phase').classList.remove('hidden');
+        showNextQuestion();
+    }
+
+    function showNextQuestion() {
+        if (currentIdx >= data.length || hp <= 0) {
+            endGame();
+            return;
+        }
+        const currentItem = data[currentIdx];
+        document.getElementById('target-img').src = currentItem.img;
+        document.getElementById('target-name').innerText = "이 생물은?";
+        document.getElementById('feedback').innerText = "";
+    }
+
+    function checkAnswer(isNativeClicked) {
+        const currentItem = data[currentIdx];
+        const isCorrect = (currentItem.type === 'native' && isNativeClicked) || 
+                          (currentItem.type === 'invasive' && !isNativeClicked);
+
+        if (isCorrect) {
+            score++;
+            document.getElementById('feedback').innerText = "✅ 정답입니다!";
+            document.getElementById('feedback').style.color = "green";
+        } else {
+            hp -= 10;
+            updateHP();
+            document.getElementById('feedback').innerText = "❌ 틀렸습니다.. 외래종의 공격으로 토종 생물이 다쳤습니다.";
+            document.getElementById('feedback').style.color = "red";
+        }
+
+        currentIdx++;
+        setTimeout(showNextQuestion, 1500);
+    }
+
+    function updateHP() {
+        const hpFill = document.getElementById('hp-fill');
+        hpFill.style.width = hp + "%";
+        if (hp <= 0) endGame();
+    }
+
+    function endGame() {
+        document.getElementById('game-phase').classList.add('hidden');
+        document.getElementById('result-phase').classList.remove('hidden');
+        
+        const title = document.getElementById('result-title');
+        if (hp > 30) {
+            title.innerText = "🎉 생태계 수호 성공!";
+            title.style.color = "#4caf50";
+        } else {
+            title.innerText = "💀 생태계 파괴됨...";
+            title.style.color = "#f44336";
+        }
+        document.getElementById('result-score').innerText = `최종 점수: ${score} / ${data.length}`;
+    }
+</script>
+
+</body>
+</html>
