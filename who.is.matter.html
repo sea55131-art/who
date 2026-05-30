@@ -1,1 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>김해의 생태계를 지켜라!</title>
+    <style>
+        :root { --main-blue: #0075c4b2; --main-green: #2ecc71; --main-red: #e74c3c; }
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f0f7ff; text-align: center; margin: 0; padding: 20px; }
+        #game-container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        .hidden { display: none; }
+        
+        /* 입력창 스타일 */
+        input { padding: 12px; width: 80%; margin: 10px 0; border: 2px solid #ddd; border-radius: 10px; font-size: 16px; }
+        
+        /* 이미지 영역 */
+        .img-wrapper { width: 100%; height: 280px; overflow: hidden; border-radius: 15px; margin: 20px 0; border: 5px solid #f8f9fa; background: #eee; }
+        .organism-img { width: 100%; height: 100%; object-fit: cover; }
+        
+        /* 버튼 */
+        .btn { padding: 15px 25px; font-size: 18px; font-weight: bold; cursor: pointer; border: none; border-radius: 12px; transition: 0.2s; margin: 5px; }
+        .btn-start { background: var(--main-blue); color: white; width: 100%; }
+        .btn-native { background: var(--main-green); color: white; flex: 1; }
+        .btn-invasive { background: var(--main-red); color: white; flex: 1; }
+        .btn-group { display: flex; gap: 10px; }
 
+        /* HP 바 */
+        .hp-bar-bg { width: 100%; height: 20px; background: #eee; border-radius: 10px; margin: 15px 0; overflow: hidden; position: relative; }
+        #hp-fill { width: 100%; height: 100%; background: var(--main-red); transition: 0.4s; }
+
+        /* 랭킹 표 */
+        .rank-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .rank-table th, .rank-table td { padding: 10px; border-bottom: 1px solid #eee; }
+        .rank-table th { background: #f8f9fa; }
+
+        #study-list { max-height: 300px; overflow-y: auto; text-align: left; background: #fdfdfd; padding: 10px; border-radius: 10px; border: 1px solid #eee; margin-bottom: 20px; }
+    </style>
+</head>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+  // 2. 님이 복사해온 설정값 그대로 적용 (데이터베이스 주소 포함됨)
+  const firebaseConfig = {
+    apiKey: "AIzaSyAsWTxiAx8Ei15W9hxpZ6-dJms_kNGQJ_k",
+    authDomain: "whois-19102.firebaseapp.com",
+    databaseURL: "https://whois-19102-default-rtdb.firebaseio.com",
+    projectId: "whois-19102",
+    storageBucket: "whois-19102.firebasestorage.app",
+    messagingSenderId: "820657052484",
+    appId: "1:820657052484:web:b173eda21a95fe1edbd511",
+    measurementId: "G-NJXL1YC41X"
+  };
+
+  // 3. 파이어베이스 초기화
+  if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+  }
+  const database = firebase.database();
+
+  // --- 여기서부터는 기존에 작성했던 게임 로직들입니다 ---
+  // data 배열, checkLogin, startGame, saveRank, displayRank 함수 등...
+
+  function saveRank() {
+      // 실시간 데이터베이스의 'ranks/학번' 경로에 저장
+      const playerPath = 'ranks/' + playerInfo.id;
+      
+      database.ref(playerPath).once('value').then((snapshot) => {
+          const existingData = snapshot.val();
+          // 기존 기록이 없거나, 현재 점수가 더 높을 때만 업데이트
+          if (!existingData || existingData.score < score) {
+              database.ref(playerPath).set({
+                  id: playerInfo.id,
+                  name: playerInfo.name,
+                  score: score,
+                  timestamp: Date.now()
+              }).then(() => {
+                  console.log("랭킹 저장 완료!");
+              });
+          }
+      });
+  }
+
+  function displayRank() {
+      const tbody = document.getElementById('rank-body');
+      
+      // 점수(score) 높은 순으로 5개만 가져오기
+      database.ref('ranks').orderByChild('score').limitToLast(5).once('value', (snapshot) => {
+          let rankList = [];
+          snapshot.forEach((child) => {
+              rankList.push(child.val());
+          });
+          
+          rankList.reverse(); // 높은 점수가 위로 오게 뒤집기
+
+          tbody.innerHTML = rankList.map((r, i) => `
+              <tr>
+                  <td>${i+1}위</td>
+                  <td>${r.id}</td>
+                  <td>${r.name}</td>
+                  <td>${r.score}</td>
+              </tr>`).join('');
+      });
+  }
+  
+  // 나머지 게임 함수들도 이 아래에 그대로 두시면 됩니다.
+</script>
+<body>
+
+<div id="game-container">
+    <h1>김해의 생태계를 지켜라~!</h1>
+
+    <div id="screen-login">
+        <h3>자신의 학번과 이름을 입력하세요!</h3>
+        <h5>토종과 외래종을 구분하여 문제를 맞추세요!<br>1등에겐 소정의 상품을 드립니다!</h5>
+        <input type="text" id="user-student-id" placeholder="학번">
+        <input type="text" id="user-name" placeholder="이름">
+        <hr>
+        <p>생물들을 미리 학습하세요!</p>
+        <div id="study-list"></div>
+        <button class="btn btn-start" onclick="checkLogin()">학습 완료! 게임 시작</button>
+        <h6>사진 출처 : 나무위키</h6>
+    </div>
+
+    <div id="screen-game" class="hidden">
+        <div class="hp-bar-bg"><div id="hp-fill"></div></div>
+        <div id="status-info" style="display: flex; justify-content: space-between; font-size: 14px; font-weight: bold;">
+            <span id="player-display"></span>
+            <span id="question-count"></span>
+        </div>
+        
+        <div class="img-wrapper">
+            <img id="target-img" class="organism-img" src="">
+        </div>
+        
+        <h2 id="target-title">이 생물은 토종일까요? 외래종일까요?</h2>
+        <div class="btn-group">
+            <button class="btn btn-native" onclick="checkAnswer(true)">토종</button>
+            <button class="btn btn-invasive" onclick="checkAnswer(false)">외래종</button>
+        </div>
+        <p id="feedback" style="font-weight: bold; font-size: 1.2em; height: 30px;"></p>
+    </div>
+
+    <div id="screen-result" class="hidden">
+        <h2 id="result-text"></h2>
+        <h3 id="final-score"></h3>
+        <hr>
+        <h4>🏆 명예의 전당 (TOP 5)</h4>
+        <table class="rank-table">
+            <thead>
+                <tr>
+                    <th>순위</th><th>학번</th><th>이름</th><th>점수</th>
+                </tr>
+            </thead>
+            <tbody id="rank-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const data = [
+        { name: "각시붕어", type: "native", info: "<strong>무지개 빛</strong>이 나서 <em><strong>'물속의 보석'</strong></em>으로도 불림.<br><em>4~5cm</em> 크기의 아주 작은 물고기.", img: "https://i.namu.wiki/i/z3rPsftpMlmiFBgJZwylIGS3QdjcFN1HSWoZWu-y22FdchTQP3C7IVKPiEmc9KhsmsG8xTeosoj8PRuwuuRVqO88K1vrO321sgY2kwFG3imf81Wfo6_mtke4ayhEXXhXF-LrpQc133w9cSlGd1Md6w.webp" },
+        { name: "큰입배스", type: "invasive", info: "아래턱이 위턱보다 길게 튀어나와 있음.<br><em>최대 60cm</em>까지 자라는 대형 어류.<br>몸 옆면에 <strong>검은색 수평 줄무늬</strong>가 있음.<br>입이 몸에 비해 거대하여 토종 물고기를 싹쓸이함.", img: "https://buly.kr/1GLhPUL" },
+        { name: "파랑볼우럭(블루길)", type: "invasive", info: "몸이 옆으로 납작함. 아가미 끝에 짙은 파란색 점이 있음.", img :"https://i.namu.wiki/i/W1F0LH3hocOEuSI3g-ICHqCRFQ9uZnmaLhV1vKdKySZY84jWGn4Ye_aXOJe2tJ-rmno4eAB85ZG1I2XmVP7u0k5Ra4Vp2jnQjs_xvgD5wrventJwYWhejfz-cM1k2Sd121r2PxEjCf5fM4AvtBQYBw.webp"},
+
+        { name: "수달", type: "native", info: "맑은 물에 사는 귀여운 천연기념물.", img: "https://url.kr/mr5lmf" },
+        { name: "뉴트리아", type: "invasive", info: "거대한 <strong>쥐</strong>처럼 생겼고 습지를 파괴함.", img: "https://url.kr/7cj8ah" },
+
+        { name: "남생이", type: "native", info: "등갑이 <strong><em>천연 기념물</em></strong>이자 <strong><em>멸종위기종</em></strong>.<br>전체적으로 <span style='color:brown'>어두운 갈색</strong>을 띄며 <span>얼굴 옆면에 <span style='color:#ecd500;'>노란색 줄무늬</span> 있음.", img: "https://buly.kr/C0BvFCt"},
+        { name: "붉은귀거북", type: "invasive", info: "눈 옆의 <span style='color:red'>빨간 줄무늬</span>가 특징.<br>하지만 <strong>물속에 있으면 헷갈리기 쉬움</strong>.", img: "https://url.kr/vvhkp1" },
+
+
+
+        //파랑볼우럭(블루길), 미국 흰불나방, 환삼덩굴,//
+        //이스라엘잉어(향어), 줄새우, 등붉은희구름미꾸라지, 미국선녀벌레, 갈색날개매미충, 빗살무늬미끈이하늘소, 가시상추, 가시박//
+    ];
+
+    let gameList = [];
+    let currentIdx = 0;
+    let score = 0;
+    let hp = 100;
+    let playerInfo = { id: "", name: "" };
+
+    // 학습 리스트 렌더링
+    function init() {
+        const studyDiv = document.getElementById('study-list');
+        data.forEach(item => {
+            studyDiv.innerHTML += `
+                <div style="display:flex; align-items:center; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                    <img src="${item.img}" style="width:50px; height:50px; object-fit:cover; border-radius:5px; margin-right:10px;">
+                    <div style="font-size:13px;">
+                        <b style="color:${item.type==='native'?'green':'red'}">[${item.type==='native'?'토종':'외래종'}] ${item.name}</b><br>
+                        ${item.info}
+                    </div>
+                </div>`;
+        });
+    }
+
+    function checkLogin() {
+        const id = document.getElementById('user-student-id').value;
+        const name = document.getElementById('user-name').value;
+        if(!id || !name) return alert("학번과 이름을 입력해주세요!");
+        playerInfo = { id, name };
+        startGame();
+    }
+
+    function startGame() {
+        // 전체 문제 중 5개를 랜덤 추출하여 섞기
+        gameList = [...data].sort(() => Math.random() - 0.5).slice(0, 5);
+        currentIdx = 0;
+        score = 0;
+        hp = 100;
+
+        document.getElementById('screen-login').classList.add('hidden');
+        document.getElementById('screen-game').classList.remove('hidden');
+        document.getElementById('player-display').innerText = `수호자: ${playerInfo.name}(${playerInfo.id})`;
+        
+        updateUI();
+        showQuestion();
+    }
+
+    function showQuestion() {
+        if(currentIdx >= gameList.length || hp <= 0) return endGame();
+        const item = gameList[currentIdx];
+        document.getElementById('target-img').src = item.img;
+        document.getElementById('question-count').innerText = `${currentIdx + 1} / ${gameList.length}`;
+        document.getElementById('feedback').innerText = "";
+    }
+
+    function checkAnswer(isNative) {
+        const item = gameList[currentIdx];
+        const correct = (item.type === 'native') === isNative;
+
+        if(correct) {
+            score += 20;
+            document.getElementById('feedback').innerText = "✅ 정답!";
+            document.getElementById('feedback').style.color = "green";
+        } else {
+            hp -= 25;
+            document.getElementById('feedback').innerText = "❌ 공격받음!";
+            document.getElementById('feedback').style.color = "red";
+            updateUI();
+        }
+
+        currentIdx++;
+        setTimeout(showQuestion, 1000);
+    }
+
+    function updateUI() {
+        document.getElementById('hp-fill').style.width = hp + "%";
+    }
+
+    function endGame() {
+        document.getElementById('screen-game').classList.add('hidden');
+        document.getElementById('screen-result').classList.remove('hidden');
+        
+        document.getElementById('result-text').innerText = hp > 0 ? "🏆 임무 성공!" : "💀 생태계 위기!";
+        document.getElementById('final-score').innerText = `최종 점수: ${score}점`;
+
+        saveRank();
+        displayRank();
+    }
+
+    function saveRank() {
+        // 1. 기존 랭킹 데이터 가져오기
+        let ranks = JSON.parse(localStorage.getItem('gimhae_ranks')) || [];
+
+        // 2. 같은 학번(ID)을 가진 기존 기록이 있는지 확인
+        const existingPlayerIdx = ranks.findIndex(r => r.id === playerInfo.id);
+
+        if (existingPlayerIdx !== -1) {
+            // 이미 기록이 있는 사람이라면? -> 현재 점수가 더 높을 때만 업데이트
+            if (ranks[existingPlayerIdx].score < score) {
+                ranks[existingPlayerIdx].score = score;
+                ranks[existingPlayerIdx].name = playerInfo.name; // 이름 변경 대응
+            }
+        } else {
+            // 처음 하는 학번이라면? -> 새로 추가
+            ranks.push({ id: playerInfo.id, name: playerInfo.name, score: score });
+        }
+
+        // 3. 점수 높은 순으로 정렬
+        ranks.sort((a, b) => b.score - a.score);
+
+        // 4. 상위 5명만 남기고 저장
+        localStorage.setItem('gimhae_ranks', JSON.stringify(ranks.slice(0, 5)));
+    }
+
+    function displayRank() {
+        const ranks = JSON.parse(localStorage.getItem('gimhae_ranks')) || [];
+        const tbody = document.getElementById('rank-body');
+        tbody.innerHTML = ranks.map((r, i) => `
+            <tr>
+                <td>${i+1}위</td>
+                <td>${r.id}</td>
+                <td>${r.name}</td>
+                <td>${r.score}</td>
+            </tr>`).join('');
+    }
+
+    init();
+</script>
+</body>
+</html>
